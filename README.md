@@ -17,13 +17,45 @@ Automatically control your ecobee thermostat based on your OwnerRez bookings. Sa
 
 - An **OwnerRez** account with API access
 - An **ecobee** thermostat (any model — Smart, Enhanced, Premium, Lite)
-- A **Linux server** (any cheap VPS works — $5/month DigitalOcean, Hetzner, etc.) or a Raspberry Pi
+- A **small server** to run the script 24/7 (see below)
 - **Python 3.8+** (no extra packages needed — uses only standard library)
 - (Optional) **Telegram** for notifications and remote control
 
+## Where Does This Run?
+
+This script needs to run on a computer that's always on — it checks your bookings every 30 minutes and adjusts the thermostat automatically. You have a few options:
+
+### Option A: A VPS (Recommended — $4-6/month)
+A VPS is a small cloud server that runs 24/7. It's the easiest and most reliable option.
+
+1. Sign up at [DigitalOcean](https://www.digitalocean.com) ($4/mo), [Hetzner](https://www.hetzner.com/cloud) ($4/mo), or [Hostinger](https://www.hostinger.com/vps-hosting) ($6/mo)
+2. Choose the smallest plan (1 CPU, 1GB RAM is plenty)
+3. Choose **Ubuntu 24.04** as the operating system
+4. Once created, you'll get an **IP address** and **root password**
+5. Connect to it from your computer's terminal: `ssh root@YOUR_IP_ADDRESS`
+6. Now you can run all the commands in this guide
+
+### Option B: A Raspberry Pi ($35-60 one-time)
+If you have a Raspberry Pi at home that's always plugged in and connected to WiFi, you can run this on it. Same setup steps — just run the commands directly on the Pi.
+
+### Option C: An old computer
+Any Mac, Windows (with WSL), or Linux computer that stays on 24/7 works.
+
+### Using Claude Code for Setup
+If you have [Claude Code](https://claude.ai/code), you can clone this repo and Claude will walk you through the entire setup step by step — including setting up the VPS, configuring credentials, and getting everything running. Just open the project and ask "help me set this up."
+
 ## Quick Start
 
-### 1. Get your OwnerRez API key
+### 1. Download the files
+
+SSH into your server (or open terminal on your Pi/computer), then:
+
+```bash
+git clone https://github.com/SWELLWakesurf/rental-thermostat-automation.git
+cd rental-thermostat-automation
+```
+
+### 2. Get your OwnerRez API key
 
 1. Log into [OwnerRez](https://www.ownerrez.com)
 2. Go to **Settings > API Keys**
