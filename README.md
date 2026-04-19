@@ -251,9 +251,9 @@ Edit these in your `.env` file:
 We offer a **fully managed version** — we set everything up and host it for you. You just enter your OwnerRez and ecobee info and we handle the rest. Includes Telegram notifications and remote control.
 
 DM me for details and pricing:
-- **Facebook:** [SWELL Wakesurf](https://www.facebook.com/swellwakesurf)
-- **Instagram:** [@swellwakesurf](https://www.instagram.com/swellwakesurf)
-- **Email:** adam@swellwakesurf.com
+- **Facebook:** [Adam Moore](https://www.facebook.com/MacPres)
+- **Instagram:** [@mooreswells](https://www.instagram.com/mooreswells)
+- **Email:** adam@blackbeachvacations.com
 
 ## Using Claude Code
 
@@ -265,4 +265,4 @@ MIT — use it however you want.
 
 ## Credits
 
-Built by [SWELL Wakesurf](https://swellwakesurf.com) for managing our vacation rental on the North Shore of Lake Superior.
+Built by [Adam Moore](https://www.facebook.com/MacPres) for managing a vacation rental on the North Shore of Lake Superior.
