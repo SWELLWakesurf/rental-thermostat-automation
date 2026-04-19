@@ -246,6 +246,15 @@ Edit these in your `.env` file:
 
 ---
 
+## Don't Want to Set It Up Yourself?
+
+We offer a **fully managed version** — we set everything up and host it for you. You just enter your OwnerRez and ecobee info and we handle the rest. Includes Telegram notifications and remote control.
+
+DM me for details and pricing:
+- **Facebook:** [SWELL Wakesurf](https://www.facebook.com/swellwakesurf)
+- **Instagram:** [@swellwakesurf](https://www.instagram.com/swellwakesurf)
+- **Email:** adam@swellwakesurf.com
+
 ## Using Claude Code
 
 If you have [Claude Code](https://claude.ai/code), you can clone this repo and ask Claude to walk you through the entire setup. It will help you configure everything step by step.
