@@ -1,0 +1,13 @@
+[Unit]
+Description=Rental Thermostat Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/rental-thermostat-automation
+ExecStart=/usr/bin/python3 /path/to/rental-thermostat-automation/bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
