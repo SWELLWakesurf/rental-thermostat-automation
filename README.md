@@ -2,250 +2,253 @@
 
 Automatically control your ecobee thermostat based on your OwnerRez bookings. Save on heating costs when your rental is vacant, and make sure it's warm when guests arrive.
 
-**No ecobee developer API key required** — this works around ecobee's discontinued developer program (March 2024) by using their Auth0 login directly.
+**No ecobee developer API key required** — ecobee stopped issuing developer keys in March 2024. This works without one.
 
 ## What It Does
 
 - Checks your OwnerRez bookings every 30 minutes
-- **Guest arriving today** — preheats to your guest temp (default 72°F) 3 hours before check-in
-- **Guest checked out** — drops to away temp (default 60°F) at checkout time
+- **Guest arriving today** — heats to 72°F before check-in so it's warm when they walk in
+- **Guest checked out** — drops to 60°F to save energy
 - **Guest staying** — leaves the thermostat alone so guests can adjust it however they want
-- **Vacant** — maintains away temp until the next booking
-- **Telegram notifications** (optional) — get a message when the thermostat changes, plus control it remotely
+- **No guests** — keeps it at 60°F until the next booking
+- **Phone notifications** (optional) — get a text via Telegram when the thermostat changes, plus control it from your phone
 
-## Requirements
+## What You Need
 
-- An **OwnerRez** account with API access
-- An **ecobee** thermostat (any model — Smart, Enhanced, Premium, Lite)
-- A **small server** to run the script 24/7 (see below)
-- **Python 3.8+** (no extra packages needed — uses only standard library)
-- (Optional) **Telegram** for notifications and remote control
+- An **OwnerRez** account
+- An **ecobee** thermostat (any model)
+- A **Hostinger VPS** (~$6/month) — this is a small cloud computer that runs the automation 24/7
+- About **30 minutes** to set everything up
 
-## Where Does This Run?
+---
 
-This script needs to run on a computer that's always on — it checks your bookings every 30 minutes and adjusts the thermostat automatically. You have a few options:
+## Setup Guide
 
-### Option A: A VPS (Recommended — $4-6/month)
-A VPS is a small cloud server that runs 24/7. It's the easiest and most reliable option.
+### Step 1: Get a Hostinger VPS
 
-1. Sign up at [DigitalOcean](https://www.digitalocean.com) ($4/mo), [Hetzner](https://www.hetzner.com/cloud) ($4/mo), or [Hostinger](https://www.hostinger.com/vps-hosting) ($6/mo)
-2. Choose the smallest plan (1 CPU, 1GB RAM is plenty)
-3. Choose **Ubuntu 24.04** as the operating system
-4. Once created, you'll get an **IP address** and **root password**
-5. Connect to it from your computer's terminal: `ssh root@YOUR_IP_ADDRESS`
-6. Now you can run all the commands in this guide
+This is the computer that will run the automation for you in the cloud. Think of it like a tiny computer that's always on.
 
-### Option B: A Raspberry Pi ($35-60 one-time)
-If you have a Raspberry Pi at home that's always plugged in and connected to WiFi, you can run this on it. Same setup steps — just run the commands directly on the Pi.
+1. Go to [Hostinger VPS Hosting](https://www.hostinger.com/vps-hosting) and sign up
+2. Choose the **KVM 1** plan (the cheapest one — it's more than enough)
+3. When it asks for an operating system, choose **Ubuntu 24.04**
+4. Set a **root password** — write it down, you'll need it
+5. Wait for it to finish setting up (takes 1-2 minutes)
+6. You'll see an **IP address** on your dashboard (looks like `123.456.78.90`) — write that down too
 
-### Option C: An old computer
-Any Mac, Windows (with WSL), or Linux computer that stays on 24/7 works.
+### Step 2: Open the Terminal on Your VPS
 
-### Using Claude Code for Setup
-If you have [Claude Code](https://claude.ai/code), you can clone this repo and Claude will walk you through the entire setup step by step — including setting up the VPS, configuring credentials, and getting everything running. Just open the project and ask "help me set this up."
+You need to type commands into your VPS. Hostinger makes this easy:
 
-## Quick Start
+1. In your Hostinger dashboard, click on your VPS
+2. Look for a button that says **Terminal** or **Browser Terminal** or **SSH Terminal**
+3. Click it — a black window will open where you can type commands
+4. Log in with username `root` and the password you set in Step 1
 
-### 1. Download the files
+You should see something like `root@vps:~#` — that means you're in!
 
-SSH into your server (or open terminal on your Pi/computer), then:
+### Step 3: Download the Automation
+
+Copy and paste this entire block into the terminal and press Enter:
 
 ```bash
+apt update -y && apt install -y python3 git
 git clone https://github.com/SWELLWakesurf/rental-thermostat-automation.git
 cd rental-thermostat-automation
-```
-
-### 2. Get your OwnerRez API key
-
-1. Log into [OwnerRez](https://www.ownerrez.com)
-2. Go to **Settings > API Keys**
-3. Create a new API key
-4. Note your email and the API key (starts with `pt_`)
-5. Find your **Property ID** — go to your property page, the ID is in the URL
-
-### 2. Find your ecobee thermostat ID
-
-Run this command (replace with your ecobee email and password):
-
-```bash
-curl -s -X POST "https://auth.ecobee.com/oauth/token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "password",
-    "client_id": "183eORFPlXyz9BbDZwqexHPBQoVjgadh",
-    "username": "YOUR_ECOBEE_EMAIL",
-    "password": "YOUR_ECOBEE_PASSWORD",
-    "audience": "https://prod.ecobee.com/api/v1",
-    "scope": "openid smartWrite smartRead"
-  }' | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])"
-```
-
-Then use that token to list your thermostats:
-
-```bash
-TOKEN="paste_token_here"
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.ecobee.com/1/thermostat?format=json&body=%7B%22selection%22%3A%7B%22selectionType%22%3A%22registered%22%2C%22selectionMatch%22%3A%22%22%7D%7D" \
-  | python3 -c "
-import json,sys
-data = json.load(sys.stdin)
-for t in data.get('thermostatList', []):
-    print(f\"Name: {t['name']} | ID: {t['identifier']}\")
-"
-```
-
-Note the **ID** of the thermostat you want to control.
-
-### 3. Configure
-
-```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
+### Step 4: Get Your OwnerRez API Key
+
+1. Log into [OwnerRez](https://www.ownerrez.com)
+2. Click **Settings** (gear icon) in the top right
+3. Click **API Keys** in the left menu
+4. Click **Create API Key**
+5. Write down:
+   - Your **OwnerRez email address**
+   - The **API key** (starts with `pt_`)
+6. Go to your **property page** in OwnerRez — look at the URL in your browser. You'll see a number in the URL — that's your **Property ID**
+
+### Step 5: Find Your Ecobee Thermostat ID
+
+Copy and paste this into the terminal (replace `YOUR_EMAIL` and `YOUR_PASSWORD` with your ecobee login):
+
+```bash
+python3 find_thermostat.py YOUR_EMAIL YOUR_PASSWORD
+```
+
+It will show you a list of your thermostats with their names and IDs. Write down the **ID** of the thermostat at your rental.
+
+### Step 6: Set Up Your Configuration
+
+Type this in the terminal:
+
+```bash
+nano .env
+```
+
+A text editor will open. Fill in your information (use arrow keys to move around):
 
 ```
-OWNERREZ_EMAIL=your@email.com
+OWNERREZ_EMAIL=your_ownerrez_email@example.com
 OWNERREZ_API_KEY=pt_your_key_here
 OWNERREZ_PROPERTY_ID=123456
-ECOBEE_EMAIL=your@email.com
-ECOBEE_PASSWORD=your_password
-ECOBEE_THERMOSTAT_ID=your_thermostat_id
+ECOBEE_EMAIL=your_ecobee_email@example.com
+ECOBEE_PASSWORD=your_ecobee_password
+ECOBEE_THERMOSTAT_ID=123456789012
 GUEST_TEMP=72
 AWAY_TEMP=60
 PREHEAT_HOURS=3
 ```
 
-### 4. Test it
+When you're done:
+- Press **Ctrl+O** (the letter O, not zero) then **Enter** to save
+- Press **Ctrl+X** to exit
+
+### Step 7: Test It
 
 ```bash
-# Check current status
 python3 thermostat.py status
-
-# Force guest mode
-python3 thermostat.py guest
-
-# Force away mode
-python3 thermostat.py away
 ```
 
-### 5. Set up the cron job
+You should see your thermostat's current temperature and your next booking. If you see an error, double-check your email/password/API key in the `.env` file.
+
+### Step 8: Turn It On
+
+Copy and paste this entire block — it sets up the automation to run every 30 minutes automatically:
 
 ```bash
-# Run every 30 minutes
-crontab -e
+(crontab -l 2>/dev/null; echo "*/30 * * * * cd $(pwd) && python3 thermostat.py >> data/cron.log 2>&1") | crontab -
+echo "Automation is now running every 30 minutes!"
 ```
 
-Add this line:
-
-```
-*/30 * * * * cd /path/to/rental-thermostat-automation && python3 thermostat.py >> data/cron.log 2>&1
-```
-
-That's it! The automation will now run every 30 minutes automatically.
+**That's it! You're done.** The automation will now check your bookings and adjust the thermostat every 30 minutes, 24/7.
 
 ---
 
-## Telegram Bot (Optional)
+## Optional: Get Phone Notifications via Telegram
 
-Get notifications and control the thermostat from your phone via Telegram.
+Want to get a message on your phone when the thermostat changes? Want to control it remotely (like heating up early for an early check-in)? Set up the Telegram bot.
 
-### Set up a Telegram bot
+### What is Telegram?
 
-1. Install **Telegram** on your phone (free — [iOS](https://apps.apple.com/app/telegram-messenger/id686449807) / [Android](https://play.google.com/store/apps/details?id=org.telegram.messenger))
-2. Open Telegram and search for **@BotFather**
-3. Send `/newbot`
-4. Choose a name (e.g., "My Rental Thermostat")
-5. Choose a username (e.g., `my_rental_thermostat_bot`)
-6. BotFather will give you a **token** — copy it
+Telegram is a free messaging app (like iMessage or WhatsApp). We use it because it lets you create your own "bot" that can send you automated messages.
 
-### Get your chat ID
+### Set Up Telegram (5 minutes)
 
-1. Send any message to your new bot in Telegram
-2. Run this in your terminal (replace YOUR_BOT_TOKEN):
-
-```bash
-curl -s "https://api.telegram.org/botYOUR_BOT_TOKEN/getUpdates" \
-  | python3 -c "import json,sys; [print('Chat ID:', m['message']['chat']['id']) for m in json.load(sys.stdin).get('result',[])]"
-```
-
-### Add to .env
-
-```
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
-```
-
-### Run the bot
+1. **Download Telegram** on your phone
+   - iPhone: [Download from App Store](https://apps.apple.com/app/telegram-messenger/id686449807)
+   - Android: [Download from Google Play](https://play.google.com/store/apps/details?id=org.telegram.messenger)
+2. **Create an account** (just needs your phone number)
+3. **Create your bot:**
+   - In Telegram, search for **@BotFather** and open a chat with it
+   - Send the message: `/newbot`
+   - It will ask for a name — type something like: `My Rental Thermostat`
+   - It will ask for a username — type something like: `my_rental_thermo_bot` (must end in `bot`)
+   - BotFather will reply with a **token** — it looks like `1234567890:ABCdefGHIjklMNOpqrsTUVwxyz`. **Copy this token.**
+4. **Get your Chat ID:**
+   - Search for your new bot's username in Telegram and open a chat with it
+   - Send it any message (just type "hi")
+   - Now go to your VPS terminal and type (replace YOUR_TOKEN with the token from step 3):
 
 ```bash
-# Test it
-python3 bot.py
-
-# Or run as a systemd service (recommended)
-sudo cp thermostat-bot.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable thermostat-bot
-sudo systemctl start thermostat-bot
+python3 get_chat_id.py YOUR_TOKEN
 ```
 
-### Telegram commands
+   - It will show your **Chat ID** (a number). Write it down.
 
-| Command | What it does |
-|---------|-------------|
-| `temp status` | Current temp + booking info |
-| `temp guest` | Set to guest mode (72°F) |
-| `temp away` | Set to away mode (60°F) |
-| `temp set 68` | Set specific temperature |
-| `early checkin` | Heat up now for early arrival |
-| `bookings` | Show upcoming bookings |
-| `help` | Show all commands |
+5. **Add to your configuration:**
 
----
+```bash
+nano .env
+```
 
-## Systemd Service Template
+Add these two lines at the bottom (replace with your actual token and chat ID):
 
-Save as `/etc/systemd/system/thermostat-bot.service`:
+```
+TELEGRAM_BOT_TOKEN=your_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+```
 
-```ini
+Save with **Ctrl+O**, **Enter**, **Ctrl+X**.
+
+6. **Start the bot:**
+
+Copy and paste this entire block:
+
+```bash
+cat > /etc/systemd/system/thermostat-bot.service << EOF
 [Unit]
 Description=Rental Thermostat Telegram Bot
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/path/to/rental-thermostat-automation
-ExecStart=/usr/bin/python3 /path/to/rental-thermostat-automation/bot.py
+WorkingDirectory=$(pwd)
+ExecStart=/usr/bin/python3 $(pwd)/bot.py
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable thermostat-bot
+systemctl start thermostat-bot
+echo "Telegram bot is now running!"
 ```
 
-## Configuration Options
+7. **Test it** — open Telegram and send `help` to your bot. It should reply with a list of commands!
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+### Telegram Commands
+
+| What to type | What it does |
+|---------|-------------|
+| `temp status` | Shows current temperature + booking info |
+| `temp guest` | Sets thermostat to guest mode (72°F) |
+| `temp away` | Sets thermostat to away mode (60°F) |
+| `temp set 68` | Sets thermostat to a specific temperature |
+| `early checkin` | Guest arriving early? Heats up right now |
+| `bookings` | Shows your upcoming bookings |
+| `help` | Shows all available commands |
+
+---
+
+## Settings You Can Change
+
+Edit these in your `.env` file:
+
+| Setting | Default | What it means |
+|---------|---------|-------------|
 | `GUEST_TEMP` | 72 | Temperature when guests are staying (°F) |
-| `AWAY_TEMP` | 60 | Temperature when vacant (°F) |
-| `PREHEAT_HOURS` | 3 | Hours before check-in to start heating |
-| `ECOBEE_CLIENT_ID` | (built-in) | ecobee Auth0 client ID — you shouldn't need to change this |
+| `AWAY_TEMP` | 60 | Temperature when no one is there (°F) |
+| `PREHEAT_HOURS` | 3 | How many hours before check-in to start heating |
 
-## How It Works
+---
 
-1. Every 30 minutes, the script calls the OwnerRez API to get your bookings
-2. It determines today's status: guest arriving, guest here, guest departing, or vacant
-3. Based on the status and time of day, it calls the ecobee API to set the thermostat
-4. It tracks what it's already done in `data/state.json` to avoid repeating actions
-5. During a guest's stay, it sets the temperature once and then **does not override** — guests can adjust the thermostat freely
+## How It Works (Behind the Scenes)
 
-## Notes
+1. Every 30 minutes, the script checks OwnerRez for today's bookings
+2. If a guest is arriving today, it heats up 3 hours before their check-in time
+3. If a guest checked out today, it drops the temp to save energy
+4. If guests are staying, it leaves the thermostat alone — they can adjust it freely
+5. If the rental is empty, it keeps the temp low
+6. The cool setpoint is set to 90°F (effectively off) — this is designed for heat-only properties. If you have AC, you can adjust this in the script.
 
-- **No AC?** The cool setpoint is set to 90°F by default, which effectively disables cooling. If you have AC, change the cool setpoint in the script.
-- **Multiple properties?** Run a separate instance for each property with its own `.env` file.
-- **ecobee MFA?** If you have multi-factor auth on your ecobee account, you may need to disable it or use an app-specific password.
-- **Logs** are stored in `data/thermostat.log` and `data/cron.log`.
+## Troubleshooting
+
+**"Invalid username or token" error** — Double-check your OwnerRez email and API key in the `.env` file.
+
+**"Authentication error" from ecobee** — Make sure your ecobee email and password are correct. If you use Google/Apple sign-in for ecobee, you'll need to set a regular password on your ecobee account first.
+
+**Thermostat not changing** — Run `python3 thermostat.py status` to see what the script thinks is happening. Check `data/thermostat.log` for error messages.
+
+**Multiple properties** — You can run a separate copy for each property. Just clone the repo again into a different folder and set up a separate `.env` file.
+
+---
+
+## Using Claude Code
+
+If you have [Claude Code](https://claude.ai/code), you can clone this repo and ask Claude to walk you through the entire setup. It will help you configure everything step by step.
 
 ## License
 
